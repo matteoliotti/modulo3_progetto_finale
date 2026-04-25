@@ -115,3 +115,7 @@ plt.title("Confronto dei Modelli - K-Fold CV (k=5)")
 plt.axvline(x=0, color="black", linewidth=0.8, linestyle="--")
 plt.tight_layout()
 plt.show()
+
+# modelllo con NMSE medio più alto
+best_model_name=max(cv_result, key=lambda m: cv_result[m].mean())
+print(f"Modello migliore: {best_model_name}")
