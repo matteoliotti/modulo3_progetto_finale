@@ -5,6 +5,11 @@ import seaborn as sns
 from sklearn.datasets import load_diabetes
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import KFold, cross_val_score
+from sklearn.linear_model import LinearRegression, Ridge, Lasso
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.svm import SVR
 
 diabetes=load_diabetes()
 
@@ -72,11 +77,7 @@ scaler=StandardScaler()
 X_train_scaled=scaler.fit_transform(X_train)
 X_test_scaled=scaler.transform(X_test)
 
-from sklearn.model_selection import KFold, cross_val_score
-from sklearn.linear_model import LinearRegression, Ridge, Lasso
-from sklearn.tree import DecisionTreeRegressor
-from sklearn.neighbors import KNeighborsRegressor
-from sklearn.svm import SVR
+
 
 # dizionario di modelli
 models={
@@ -91,8 +92,8 @@ models={
 # k-fold con k=5
 kf=KFold(n_splits=5, shuffle=True, random_state=42)
 
-print(f"{"Modello":<22}{"NMSE medio":>12}{"Std Dev":>10}")
-print("-"*46)
+#print(f"{"Modello":<22}{"NMSE medio":>12}{"Std Dev":>10}")
+#print("-"*46)
 
 cv_result={}
 for name, model in models.items():
@@ -101,7 +102,7 @@ for name, model in models.items():
         cv=kf, scoring="neg_mean_squared_error"
     )
     cv_result[name]=scores
-    print(f"{name:<22}{scores.mean():>12.2f}{scores.std():>10.2f}")
+    #print(f"{name:<22}{scores.mean():>12.2f}{scores.std():>10.2f}")
 
 
 means=[cv_result[m].mean() for m in models]
@@ -114,8 +115,37 @@ plt.xlabel("NMSE (Negative Mean Squared Errors)")
 plt.title("Confronto dei Modelli - K-Fold CV (k=5)")
 plt.axvline(x=0, color="black", linewidth=0.8, linestyle="--")
 plt.tight_layout()
-plt.show()
+#plt.show()
 
 # modelllo con NMSE medio più alto
 best_model_name=max(cv_result, key=lambda m: cv_result[m].mean())
-print(f"Modello migliore: {best_model_name}")
+#print(f"Modello migliore: {best_model_name}")
+
+from sklearn.model_selection import GridSearchCV
+
+# valori alpha da provare
+param_grid={"alpha":[0.01,0.1,1,10,100,1000]}
+
+# Cross-Validation Grid search
+grid_search=GridSearchCV(Ridge(), param_grid, cv=kf, scoring="neg_mean_squared_error", n_jobs=-1)
+grid_search.fit(X_train_scaled, y_train)
+
+print(f"Miglior alpha: {grid_search.best_params_["alpha"]}")
+print(f"Miglior NMSE CV: {grid_search.best_score_:.2f}")
+
+from sklearn.metrics import mean_squared_error, r2_score
+
+# addestramento usando miglior alpha
+best_alpha=grid_search.best_params_["alpha"]
+best_model=Ridge(alpha=best_alpha)
+best_model.fit(X_train_scaled, y_train)
+
+# predizione
+y_pred=best_model.predict(X_test_scaled)
+
+# metrichefinali
+mse=mean_squared_error(y_test, y_pred)
+r2=r2_score(y_test, y_pred)
+
+print(f"MSE: {mse:.2f}")
+print(f"R2: {r2:.4f}")
