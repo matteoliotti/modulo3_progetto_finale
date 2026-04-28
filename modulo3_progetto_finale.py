@@ -10,6 +10,8 @@ from sklearn.linear_model import LinearRegression, Ridge, Lasso
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.svm import SVR
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import mean_squared_error, r2_score
 
 diabetes=load_diabetes()
 
@@ -121,7 +123,6 @@ plt.tight_layout()
 best_model_name=max(cv_result, key=lambda m: cv_result[m].mean())
 #print(f"Modello migliore: {best_model_name}")
 
-from sklearn.model_selection import GridSearchCV
 
 # valori alpha da provare
 param_grid={"alpha":[0.01,0.1,1,10,100,1000]}
@@ -130,10 +131,9 @@ param_grid={"alpha":[0.01,0.1,1,10,100,1000]}
 grid_search=GridSearchCV(Ridge(), param_grid, cv=kf, scoring="neg_mean_squared_error", n_jobs=-1)
 grid_search.fit(X_train_scaled, y_train)
 
-print(f"Miglior alpha: {grid_search.best_params_["alpha"]}")
-print(f"Miglior NMSE CV: {grid_search.best_score_:.2f}")
+#print(f"Miglior alpha: {grid_search.best_params_["alpha"]}")
+#print(f"Miglior NMSE CV: {grid_search.best_score_:.2f}")
 
-from sklearn.metrics import mean_squared_error, r2_score
 
 # addestramento usando miglior alpha
 best_alpha=grid_search.best_params_["alpha"]
@@ -147,5 +147,27 @@ y_pred=best_model.predict(X_test_scaled)
 mse=mean_squared_error(y_test, y_pred)
 r2=r2_score(y_test, y_pred)
 
-print(f"MSE: {mse:.2f}")
-print(f"R2: {r2:.4f}")
+#print(f"MSE: {mse:.2f}")
+#print(f"R2: {r2:.4f}")
+
+from sklearn.model_selection import learning_curve
+
+train_sizes, train_scores, val_scores=learning_curve(
+    best_model, X_train_scaled, y_train, cv=kf, scoring="neg_mean_squared_error", train_sizes=np.linspace(0.1,1.0,10), n_jobs=-1
+    )
+
+# calcolo media e std
+train_mean=-train_scores.mean(axis=1)
+train_std=train_scores.std(axis=1)
+val_mean=-val_scores.mean(axis=1)
+val_std=val_scores.std(axis=1)
+
+plt.figure(figsize=(9,6))
+plt.plot(train_sizes, train_mean, "o-", color="steelblue", label="Training MSE")
+plt.plot(train_sizes, val_mean, "o-", color="darkorange", label="Validation MSE")
+plt.fill_between(train_sizes, train_mean-train_std, train_mean+train_std, alpha=0.15, color="steelblue")
+plt.fill_between(train_sizes, val_mean-val_std, val_mean+val_std, alpha=0.15, color="darkorange")
+plt.xlabel("Numero campioni")
+plt.ylabel("MSE")
+plt.legend()
+plt.show()
