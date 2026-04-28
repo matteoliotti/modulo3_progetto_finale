@@ -12,6 +12,7 @@ from sklearn.neighbors import KNeighborsRegressor
 from sklearn.svm import SVR
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.model_selection import learning_curve
 
 diabetes=load_diabetes()
 
@@ -24,14 +25,14 @@ df=X.copy()
 df["target"]=y
 
 # analisi 
-#print("---Dimensione dataset---")
-#print(f"Campioni: {df.shape[0]}\nFeatures: {df.shape[1]-1}")
+print("---Dimensione dataset---")
+print(f"Campioni: {df.shape[0]}\nFeatures: {df.shape[1]-1}")
 
-#print("\n---Analisi descrittiva---")
-#print(df.describe())
+print("\n---Analisi descrittiva---")
+print(df.describe())
 
-#print("\n---Valori nulli---")
-#print(df.isnull().sum())
+print("\n---Valori nulli---")
+print(df.isnull().sum())
 
 
 fig,axes=plt.subplots(3,4, figsize=(16,12))
@@ -45,7 +46,7 @@ for i, col in enumerate(X.columns):
 axes[2][2].set_visible(False)
 axes[2][3].set_visible(False) #nascondo i riquardi vuoti
 plt.tight_layout()
-#plt.show()
+plt.show()
 
 fig,axes=plt.subplots(3,4, figsize=(16,12))
 fig.suptitle("Boxplot delle Features", fontsize=16)
@@ -58,21 +59,21 @@ for i, col in enumerate(X.columns):
 axes[2][2].set_visible(False)
 axes[2][3].set_visible(False)
 plt.tight_layout()
-#plt.show()
+plt.show()
 
 
 plt.figure(figsize=(12,10))
 sns.heatmap(df.corr(), annot=True, fmt=".2f", cmap="coolwarm", center =0)
 plt.title("Mappa di correlazione")
-#plt.show()
+plt.show()
 
 
 
 # Training e test
 X_train, X_test, y_train, y_test=train_test_split(X,y, test_size=0.2, random_state=42)
 
-#print(f"Training set: {X_train.shape[0]} campioni")
-#print(f"Test set: {X_test.shape[0]} campioni")
+print(f"Training set: {X_train.shape[0]} campioni")
+print(f"Test set: {X_test.shape[0]} campioni")
 
 # Standardizzazione
 scaler=StandardScaler()
@@ -94,8 +95,8 @@ models={
 # k-fold con k=5
 kf=KFold(n_splits=5, shuffle=True, random_state=42)
 
-#print(f"{"Modello":<22}{"NMSE medio":>12}{"Std Dev":>10}")
-#print("-"*46)
+print(f"{"Modello":<22}{"NMSE medio":>12}{"Std Dev":>10}")
+print("-"*46)
 
 cv_result={}
 for name, model in models.items():
@@ -104,7 +105,7 @@ for name, model in models.items():
         cv=kf, scoring="neg_mean_squared_error"
     )
     cv_result[name]=scores
-    #print(f"{name:<22}{scores.mean():>12.2f}{scores.std():>10.2f}")
+    print(f"{name:<22}{scores.mean():>12.2f}{scores.std():>10.2f}")
 
 
 means=[cv_result[m].mean() for m in models]
@@ -117,11 +118,11 @@ plt.xlabel("NMSE (Negative Mean Squared Errors)")
 plt.title("Confronto dei Modelli - K-Fold CV (k=5)")
 plt.axvline(x=0, color="black", linewidth=0.8, linestyle="--")
 plt.tight_layout()
-#plt.show()
+plt.show()
 
 # modelllo con NMSE medio più alto
 best_model_name=max(cv_result, key=lambda m: cv_result[m].mean())
-#print(f"Modello migliore: {best_model_name}")
+print(f"Modello migliore: {best_model_name}")
 
 
 # valori alpha da provare
@@ -131,8 +132,8 @@ param_grid={"alpha":[0.01,0.1,1,10,100,1000]}
 grid_search=GridSearchCV(Ridge(), param_grid, cv=kf, scoring="neg_mean_squared_error", n_jobs=-1)
 grid_search.fit(X_train_scaled, y_train)
 
-#print(f"Miglior alpha: {grid_search.best_params_["alpha"]}")
-#print(f"Miglior NMSE CV: {grid_search.best_score_:.2f}")
+print(f"Miglior alpha: {grid_search.best_params_["alpha"]}")
+print(f"Miglior NMSE CV: {grid_search.best_score_:.2f}")
 
 
 # addestramento usando miglior alpha
@@ -147,10 +148,9 @@ y_pred=best_model.predict(X_test_scaled)
 mse=mean_squared_error(y_test, y_pred)
 r2=r2_score(y_test, y_pred)
 
-#print(f"MSE: {mse:.2f}")
-#print(f"R2: {r2:.4f}")
+print(f"MSE: {mse:.2f}")
+print(f"R2: {r2:.4f}")
 
-from sklearn.model_selection import learning_curve
 
 train_sizes, train_scores, val_scores=learning_curve(
     best_model, X_train_scaled, y_train, cv=kf, scoring="neg_mean_squared_error", train_sizes=np.linspace(0.1,1.0,10), n_jobs=-1
@@ -170,4 +170,50 @@ plt.fill_between(train_sizes, val_mean-val_std, val_mean+val_std, alpha=0.15, co
 plt.xlabel("Numero campioni")
 plt.ylabel("MSE")
 plt.legend()
+plt.show()
+
+from sklearn.decomposition import PCA
+
+# standardizzazione di X
+X_scaled=scaler.transform(X)
+
+# PCA con 2 componenti
+pca=PCA(n_components=2)
+X_pca=pca.fit_transform(X_scaled)
+
+print((f"Varianza spiegata PC1: {pca.explained_variance_ratio_[0]*100:.1f}%"))
+print((f"Varianza spiegata PC2: {pca.explained_variance_ratio_[1]*100:.1f}%"))
+print((f"Varianza totale: {pca.explained_variance_ratio_.sum()*100:.1f}%"))
+
+plt.figure(figsize=(9,7))
+scatter=plt.scatter(X_pca[:,0], X_pca[:,1], c=y, cmap="viridis", alpha=0.7, s=40)
+plt.colorbar(scatter, label="Target (prograssione diabete)")
+plt.xlabel(f"PC1({pca.explained_variance_ratio_[0]*100:.1f})")
+plt.ylabel(f"PC2({pca.explained_variance_ratio_[1]*100:.1f})")
+plt.title("PCA-Spazio Bidimensionale")
+plt.show()
+
+from mpl_toolkits.mplot3d import Axes3D
+
+# Split e addestramento modello sulle PCA
+X_pca_train, X_pca_test, y_pca_train, y_pca_test=train_test_split(X_pca, y, test_size=0.2, random_state=42)
+
+best_model_pca=Ridge(alpha=best_alpha)
+best_model_pca.fit(X_pca_train, y_pca_train)
+
+# piano di regressione
+pc1_range=np.linspace(X_pca[:,0].min(), X_pca[:,0].max(), 40)
+pc2_range=np.linspace(X_pca[:,1].min(), X_pca[:,1].max(), 40)
+PC1,PC2=np.meshgrid(pc1_range, pc2_range)
+Z=best_model_pca.predict(np.c_[PC1.ravel(), PC2.ravel()]).reshape(PC1.shape)
+
+fig=plt.figure(figsize=(11,8))
+ax=fig.add_subplot(111, projection="3d")
+ax.plot_surface(PC1, PC2, Z, alpha=0.4, cmap="coolwarm")
+ax.scatter(X_pca_test[:,0], X_pca_test[:,1], y_pca_test, c="navy", s=25, label="Dati test")
+ax.set_xlabel("PC1")
+ax.set_ylabel("PC2")
+ax.set_zlabel("Target")
+ax.set_title("Piano di regressione nello spazio PCA")
+ax.legend()
 plt.show()
